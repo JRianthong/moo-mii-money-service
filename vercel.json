@@ -9,13 +9,5 @@
       "source": "/webhooks/line",
       "destination": "/api/webhooks/line"
     }
-  ],
-  "functions": {
-    "api/healthz.go": {
-      "maxDuration": 10
-    },
-    "api/webhooks/line.go": {
-      "maxDuration": 10
-    }
-  }
+  ]
 }

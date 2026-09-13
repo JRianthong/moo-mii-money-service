@@ -111,6 +111,8 @@ api/webhooks/line.go
 vercel.json
 ```
 
+Vercel auto-detects Go functions from `.go` files under `api/`, so `vercel.json` only contains rewrites for clean public URLs.
+
 Set these environment variables in Vercel Project Settings:
 
 ```text
