@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/healthz",
+      "destination": "/api/healthz"
+    },
+    {
+      "source": "/webhooks/line",
+      "destination": "/api/webhooks/line"
+    }
+  ],
+  "functions": {
+    "api/healthz.go": {
+      "maxDuration": 10
+    },
+    "api/webhooks/line.go": {
+      "maxDuration": 10
+    }
+  }
+}
