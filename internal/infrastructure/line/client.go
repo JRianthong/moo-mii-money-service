@@ -63,12 +63,43 @@ func (c Client) ReplyText(ctx context.Context, replyToken, text string) error {
 	return nil
 }
 
+func (c Client) ReplyFlex(ctx context.Context, replyToken, altText string, contents any) error {
+	payload := replyRequest{
+		ReplyToken: replyToken,
+		Messages: []replyMessage{{
+			Type: "flex", AltText: altText, Contents: contents,
+		}},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.line.me/v2/bot/message/reply", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.channelAccessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("line flex reply failed with status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 type replyRequest struct {
 	ReplyToken string         `json:"replyToken"`
 	Messages   []replyMessage `json:"messages"`
 }
 
 type replyMessage struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	AltText  string `json:"altText,omitempty"`
+	Contents any    `json:"contents,omitempty"`
 }

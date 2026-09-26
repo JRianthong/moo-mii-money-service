@@ -18,5 +18,6 @@ type SaveTransactionResult struct {
 
 type TransactionReader interface {
 	SumByType(ctx context.Context, userID money.UserID, from, to time.Time) (incomeCents int64, expenseCents int64, err error)
+	SumExpensesByCategory(ctx context.Context, userID money.UserID, from, to time.Time) (map[string]int64, error)
 	ListRecent(ctx context.Context, userID money.UserID, limit int) ([]money.Transaction, error)
 }

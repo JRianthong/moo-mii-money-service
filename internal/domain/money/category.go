@@ -70,6 +70,10 @@ func AvailableCategories(txType TransactionType) []Category {
 	return copied
 }
 
+func FindCategory(txType TransactionType, value string) (Category, bool) {
+	return findCategory(txType, value)
+}
+
 func defaultCategory(txType TransactionType) (Category, error) {
 	return NewCategory(txType, "other", "อื่น ๆ")
 }

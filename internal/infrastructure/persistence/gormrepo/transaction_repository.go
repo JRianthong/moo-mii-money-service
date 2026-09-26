@@ -70,6 +70,28 @@ func (r TransactionRepository) SumByType(ctx context.Context, userID money.UserI
 	return income, expense, nil
 }
 
+func (r TransactionRepository) SumExpensesByCategory(ctx context.Context, userID money.UserID, from, to time.Time) (map[string]int64, error) {
+	type row struct {
+		CategoryCode string
+		Total        int64
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&TransactionModel{}).
+		Select("category_code, COALESCE(SUM(amount_cents), 0) AS total").
+		Where("user_id = ? AND type = ? AND occurred_at >= ? AND occurred_at < ?", userID.String(), string(money.TransactionTypeExpense), from, to).
+		Group("category_code").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	totals := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		totals[row.CategoryCode] = row.Total
+	}
+	return totals, nil
+}
+
 func (r TransactionRepository) ListRecent(ctx context.Context, userID money.UserID, limit int) ([]money.Transaction, error) {
 	var models []TransactionModel
 	if err := r.db.WithContext(ctx).

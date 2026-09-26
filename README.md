@@ -79,6 +79,12 @@ They can still use the same Supabase database at this stage, but the application
 สรุป
 รอบ
 ตั้งรอบ 28
+ตั้งงบ อาหาร 9000
+งบ
+แสดงงบรายวัน อาหาร
+ซ่อนงบรายวัน อาหาร
+งบรายวัน
+ลบงบ อาหาร
 ล่าสุด
 หมวดหมู่
 วิธีใช้
@@ -91,7 +97,8 @@ They can still use the same Supabase database at this stage, but the application
 3. Copy `.env.example` to `.env` or export the same variables.
 4. Replace `<database-password>` in `DATABASE_URL` with the Supabase database password.
 5. Apply the new migration `migrations/003_create_user_settings.sql` in Supabase SQL Editor.
-6. Set the LINE Messaging API webhook URL to:
+6. Apply `migrations/004_create_category_budgets.sql` in Supabase SQL Editor.
+7. Set the LINE Messaging API webhook URL to:
 
 ```text
 https://your-domain.example/webhooks/line
@@ -143,6 +150,11 @@ https://<your-vercel-domain>/webhooks/line
 The billing cycle defaults to the 1st of each month. Users can check it with `รอบ`
 and change it with `ตั้งรอบ 28`. For a month without the selected day, the cycle
 starts on that month's final day.
+
+Monthly expense budgets use `ตั้งงบ อาหาร 9000`. Use `งบ` to review all budgets,
+`แสดงงบรายวัน อาหาร` or `ซ่อนงบรายวัน อาหาร` to choose daily overview categories,
+and `งบรายวัน` to show selected categories. The daily view includes the monthly
+budget's average per day and the remaining budget spread across remaining days.
 
 ## Environment
 

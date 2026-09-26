@@ -15,20 +15,28 @@ import (
 type ParsedIntentType string
 
 const (
-	ParsedIntentRecord          ParsedIntentType = "record"
-	ParsedIntentSummary         ParsedIntentType = "summary"
-	ParsedIntentRecent          ParsedIntentType = "recent"
-	ParsedIntentCategories      ParsedIntentType = "categories"
-	ParsedIntentBillingCycle    ParsedIntentType = "billing_cycle"
-	ParsedIntentSetBillingCycle ParsedIntentType = "set_billing_cycle"
-	ParsedIntentHelp            ParsedIntentType = "help"
-	ParsedIntentUnknown         ParsedIntentType = "unknown"
+	ParsedIntentRecord                ParsedIntentType = "record"
+	ParsedIntentSummary               ParsedIntentType = "summary"
+	ParsedIntentRecent                ParsedIntentType = "recent"
+	ParsedIntentCategories            ParsedIntentType = "categories"
+	ParsedIntentBillingCycle          ParsedIntentType = "billing_cycle"
+	ParsedIntentSetBillingCycle       ParsedIntentType = "set_billing_cycle"
+	ParsedIntentCategoryBudgets       ParsedIntentType = "category_budgets"
+	ParsedIntentDailyBudgets          ParsedIntentType = "daily_budgets"
+	ParsedIntentSetCategoryBudget     ParsedIntentType = "set_category_budget"
+	ParsedIntentSetDailyBudgetDisplay ParsedIntentType = "set_daily_budget_display"
+	ParsedIntentDeleteCategoryBudget  ParsedIntentType = "delete_category_budget"
+	ParsedIntentHelp                  ParsedIntentType = "help"
+	ParsedIntentUnknown               ParsedIntentType = "unknown"
 )
 
 type ParsedIntent struct {
-	Type            ParsedIntentType
-	Command         commands.RecordTransactionCommand
-	BillingCycleDay int
+	Type                ParsedIntentType
+	Command             commands.RecordTransactionCommand
+	BillingCycleDay     int
+	BudgetCategory      string
+	BudgetAmountCents   int64
+	DailyDisplayEnabled bool
 }
 
 type TextParser struct {
@@ -63,6 +71,47 @@ func (p TextParser) Parse(userID, sourceMessageID, text string, now time.Time) (
 	}
 	if lower == "รอบ" || lower == "ตั้งรอบ" {
 		return ParsedIntent{Type: ParsedIntentBillingCycle}, nil
+	}
+	if lower == "งบ" || lower == "งบเดือนนี้" {
+		return ParsedIntent{Type: ParsedIntentCategoryBudgets}, nil
+	}
+	if lower == "งบรายวัน" || lower == "งบวันนี้" {
+		return ParsedIntent{Type: ParsedIntentDailyBudgets}, nil
+	}
+	if strings.HasPrefix(lower, "ตั้งงบ ") {
+		fields := strings.Fields(normalized)
+		if len(fields) < 3 {
+			return ParsedIntent{Type: ParsedIntentSetCategoryBudget}, errors.New("use: ตั้งงบ <หมวดหมู่> <จำนวนเงิน>")
+		}
+		amount, err := parseAmountCents(fields[len(fields)-1])
+		if err != nil {
+			return ParsedIntent{Type: ParsedIntentSetCategoryBudget}, err
+		}
+		return ParsedIntent{Type: ParsedIntentSetCategoryBudget, BudgetCategory: strings.Join(fields[1:len(fields)-1], " "), BudgetAmountCents: amount}, nil
+	}
+	if strings.HasPrefix(lower, "แสดงงบรายวัน ") || strings.HasPrefix(lower, "ซ่อนงบรายวัน ") {
+		fields := strings.Fields(normalized)
+		if len(fields) != 2 {
+			prefix := "แสดงงบรายวัน "
+			if strings.HasPrefix(lower, "ซ่อนงบรายวัน ") {
+				prefix = "ซ่อนงบรายวัน "
+			}
+			category := strings.TrimSpace(normalized[len(prefix):])
+			if category == "" {
+				return ParsedIntent{Type: ParsedIntentSetDailyBudgetDisplay}, errors.New("specify one expense category")
+			}
+			enabled := strings.HasPrefix(lower, "แสดงงบรายวัน ")
+			return ParsedIntent{Type: ParsedIntentSetDailyBudgetDisplay, BudgetCategory: category, DailyDisplayEnabled: enabled}, nil
+		}
+		enabled := strings.HasPrefix(lower, "แสดงงบรายวัน ")
+		return ParsedIntent{Type: ParsedIntentSetDailyBudgetDisplay, BudgetCategory: fields[1], DailyDisplayEnabled: enabled}, nil
+	}
+	if strings.HasPrefix(lower, "ลบงบ ") {
+		category := strings.TrimSpace(normalized[len("ลบงบ "):])
+		if category == "" {
+			return ParsedIntent{Type: ParsedIntentDeleteCategoryBudget}, errors.New("specify one expense category")
+		}
+		return ParsedIntent{Type: ParsedIntentDeleteCategoryBudget, BudgetCategory: category}, nil
 	}
 	if strings.HasPrefix(lower, "ตั้งรอบ ") || strings.HasPrefix(lower, "ตัดรอบ ") {
 		fields := strings.Fields(normalized)
