@@ -24,6 +24,7 @@ func NewFiberApp(cfg config.Config) (*fiber.App, error) {
 	}
 
 	txRepo := gormrepo.NewTransactionRepository(db)
+	settingsRepo := gormrepo.NewUserSettingsRepository(db)
 	lineClient := line.NewClient(cfg.LineChannelSecret, cfg.LineChannelAccessToken)
 	parser := line.NewTextParser(cfg.DefaultCurrency, time.Local)
 
@@ -37,7 +38,9 @@ func NewFiberApp(cfg config.Config) (*fiber.App, error) {
 		LineClient:             lineClient,
 		TextParser:             parser,
 		RecordTransaction:      commands.NewRecordTransactionHandler(txRepo),
-		GetMonthlySummary:      queries.NewMonthlySummaryHandler(txRepo),
+		SetBillingCycle:        commands.NewSetBillingCycleHandler(settingsRepo),
+		GetBillingCycle:        queries.NewGetBillingCycleHandler(settingsRepo),
+		GetMonthlySummary:      queries.NewMonthlySummaryHandler(txRepo, settingsRepo),
 		ListRecentTransactions: queries.NewListRecentTransactionsHandler(txRepo),
 	})
 	return app, nil

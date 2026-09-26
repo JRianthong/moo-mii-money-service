@@ -17,7 +17,9 @@ type Dependencies struct {
 	LineClient             line.Client
 	TextParser             line.TextParser
 	RecordTransaction      commands.RecordTransactionHandler
+	SetBillingCycle        commands.SetBillingCycleHandler
 	GetMonthlySummary      queries.MonthlySummaryHandler
+	GetBillingCycle        queries.GetBillingCycleHandler
 	ListRecentTransactions queries.ListRecentTransactionsHandler
 }
 
@@ -63,6 +65,9 @@ func handleLineTextEvent(ctx context.Context, deps Dependencies, event line.Webh
 
 	intent, err := deps.TextParser.Parse(userID, event.Message.ID, event.Message.Text, now)
 	if err != nil {
+		if strings.Contains(strings.ToLower(event.Message.Text), "รอบ") {
+			return deps.LineClient.ReplyText(ctx, event.ReplyToken, "ตั้งรอบได้ตั้งแต่วันที่ 1 ถึง 31 เช่น ตั้งรอบ 28")
+		}
 		return deps.LineClient.ReplyText(ctx, event.ReplyToken, "อ่านยอดไม่สำเร็จ ลองพิมพ์เช่น: จ่าย 120 ข้าวกลางวัน")
 	}
 
@@ -88,6 +93,18 @@ func handleLineTextEvent(ctx context.Context, deps Dependencies, event line.Webh
 		reply = formatRecent(transactions)
 	case line.ParsedIntentCategories:
 		reply = formatCategories()
+	case line.ParsedIntentBillingCycle:
+		cycle, err := deps.GetBillingCycle.Handle(ctx, userID)
+		if err != nil {
+			return err
+		}
+		reply = fmt.Sprintf("ตอนนี้ตัดรอบทุกวันที่ %d\nเปลี่ยนได้ด้วยคำสั่ง: ตั้งรอบ 28", cycle.StartDay())
+	case line.ParsedIntentSetBillingCycle:
+		cycle, err := deps.SetBillingCycle.Handle(ctx, commands.SetBillingCycleCommand{UserID: userID, StartDay: intent.BillingCycleDay})
+		if err != nil {
+			return err
+		}
+		reply = fmt.Sprintf("ตั้งรอบเรียบร้อย ตัดรอบทุกวันที่ %d\nพิมพ์ สรุป เพื่อดูยอดตามรอบใหม่", cycle.StartDay())
 	case line.ParsedIntentHelp:
 		reply = helpText()
 	default:
@@ -125,8 +142,9 @@ func formatRecorded(tx money.Transaction, alreadyRecorded bool) string {
 
 func formatSummary(summary queries.MonthlySummaryResult) string {
 	return fmt.Sprintf(
-		"สรุปเดือน %s\nรายรับ %.2f\nรายจ่าย %.2f\nคงเหลือ %.2f",
-		summary.From.Format("01/2006"),
+		"สรุปรอบ %s - %s\nรายรับ %.2f\nรายจ่าย %.2f\nคงเหลือ %.2f",
+		summary.From.Format("02/01/2006"),
+		summary.To.AddDate(0, 0, -1).Format("02/01/2006"),
 		centsToFloat(summary.IncomeCents),
 		centsToFloat(summary.ExpenseCents),
 		centsToFloat(summary.BalanceCents),
@@ -159,6 +177,8 @@ func helpText() string {
 		"สรุป",
 		"ล่าสุด",
 		"หมวดหมู่",
+		"รอบ",
+		"ตั้งรอบ 28",
 	}, "\n")
 }
 

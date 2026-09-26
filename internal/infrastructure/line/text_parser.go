@@ -15,17 +15,20 @@ import (
 type ParsedIntentType string
 
 const (
-	ParsedIntentRecord     ParsedIntentType = "record"
-	ParsedIntentSummary    ParsedIntentType = "summary"
-	ParsedIntentRecent     ParsedIntentType = "recent"
-	ParsedIntentCategories ParsedIntentType = "categories"
-	ParsedIntentHelp       ParsedIntentType = "help"
-	ParsedIntentUnknown    ParsedIntentType = "unknown"
+	ParsedIntentRecord          ParsedIntentType = "record"
+	ParsedIntentSummary         ParsedIntentType = "summary"
+	ParsedIntentRecent          ParsedIntentType = "recent"
+	ParsedIntentCategories      ParsedIntentType = "categories"
+	ParsedIntentBillingCycle    ParsedIntentType = "billing_cycle"
+	ParsedIntentSetBillingCycle ParsedIntentType = "set_billing_cycle"
+	ParsedIntentHelp            ParsedIntentType = "help"
+	ParsedIntentUnknown         ParsedIntentType = "unknown"
 )
 
 type ParsedIntent struct {
-	Type    ParsedIntentType
-	Command commands.RecordTransactionCommand
+	Type            ParsedIntentType
+	Command         commands.RecordTransactionCommand
+	BillingCycleDay int
 }
 
 type TextParser struct {
@@ -57,6 +60,20 @@ func (p TextParser) Parse(userID, sourceMessageID, text string, now time.Time) (
 	}
 	if lower == "categories" || lower == "category" || lower == "หมวดหมู่" || lower == "หมวด" {
 		return ParsedIntent{Type: ParsedIntentCategories}, nil
+	}
+	if lower == "รอบ" || lower == "ตั้งรอบ" {
+		return ParsedIntent{Type: ParsedIntentBillingCycle}, nil
+	}
+	if strings.HasPrefix(lower, "ตั้งรอบ ") || strings.HasPrefix(lower, "ตัดรอบ ") {
+		fields := strings.Fields(normalized)
+		if len(fields) != 2 {
+			return ParsedIntent{Type: ParsedIntentSetBillingCycle}, errors.New("billing cycle day is required")
+		}
+		day, err := strconv.Atoi(fields[1])
+		if err != nil || day < 1 || day > 31 {
+			return ParsedIntent{Type: ParsedIntentSetBillingCycle}, errors.New("billing cycle day must be between 1 and 31")
+		}
+		return ParsedIntent{Type: ParsedIntentSetBillingCycle, BillingCycleDay: day}, nil
 	}
 
 	txType, rest, ok := detectType(normalized)

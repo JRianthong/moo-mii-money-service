@@ -22,11 +22,12 @@ type MonthlySummaryResult struct {
 }
 
 type MonthlySummaryHandler struct {
-	reader ports.TransactionReader
+	reader   ports.TransactionReader
+	settings ports.UserSettingsRepository
 }
 
-func NewMonthlySummaryHandler(reader ports.TransactionReader) MonthlySummaryHandler {
-	return MonthlySummaryHandler{reader: reader}
+func NewMonthlySummaryHandler(reader ports.TransactionReader, settings ports.UserSettingsRepository) MonthlySummaryHandler {
+	return MonthlySummaryHandler{reader: reader, settings: settings}
 }
 
 func (h MonthlySummaryHandler) Handle(ctx context.Context, query MonthlySummaryQuery) (MonthlySummaryResult, error) {
@@ -34,13 +35,15 @@ func (h MonthlySummaryHandler) Handle(ctx context.Context, query MonthlySummaryQ
 	if now.IsZero() {
 		now = time.Now()
 	}
-	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	to := from.AddDate(0, 1, 0)
-
 	userID, err := money.NewUserID(query.UserID)
 	if err != nil {
 		return MonthlySummaryResult{}, err
 	}
+	cycle, err := h.settings.BillingCycle(ctx, userID)
+	if err != nil {
+		return MonthlySummaryResult{}, err
+	}
+	from, to := cycle.Period(now)
 	income, expense, err := h.reader.SumByType(ctx, userID, from, to)
 	if err != nil {
 		return MonthlySummaryResult{}, err
